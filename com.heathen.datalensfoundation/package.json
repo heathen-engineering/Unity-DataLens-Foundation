@@ -1,0 +1,18 @@
+{
+  "name": "com.heathen.datalensfoundation",
+  "version": "0.1.0",
+  "displayName": "DataLens Foundation",
+  "description": "Unity binding over the engine-agnostic native DataLens core: a cache-aware, column-oriented in-memory simulation store. A1 walking-skeleton slice (DataStore only).",
+  "unity": "2021.3",
+  "author": {
+    "name": "Heathen Group",
+    "email": "support@heathen.group",
+    "url": "https://heathen.group"
+  },
+  "keywords": [
+    "datalens",
+    "ecs",
+    "data-oriented",
+    "simulation"
+  ]
+}
