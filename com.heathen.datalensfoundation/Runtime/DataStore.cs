@@ -49,6 +49,34 @@ namespace Heathen.DataLens
         public void SetValid(ulong row, bool valid) => DataLensNative.dl_store_set_valid(_handle, row, valid ? 1 : 0);
         public bool IsValid(ulong row) => DataLensNative.dl_store_is_valid(_handle, row) != 0;
 
+        /// <summary>Sentinel returned by <see cref="AllocRow"/> when the store is at capacity.</summary>
+        public const ulong InvalidRow = ulong.MaxValue;
+
+        /// <summary>Allocate the next free row and mark it valid. Returns <see cref="InvalidRow"/> when full.</summary>
+        public ulong AllocRow() => DataLensNative.dl_store_alloc_row(_handle);
+
+        /// <summary>Release a row so it can be reused by a later <see cref="AllocRow"/>.</summary>
+        public void FreeRow(ulong row) => DataLensNative.dl_store_free_row(_handle, row);
+
+        /// <summary>Number of currently-valid (live) rows.</summary>
+        public ulong LiveCount => DataLensNative.dl_store_live_count(_handle);
+
+        // ── Systems (A3) ─────────────────────────────────────────────────────
+        // Run a conditional column transform over all live rows: where the optional predicate
+        // (compareCol CMP threshold) holds, apply (targetCol = targetCol OP operand). Returns rows affected.
+
+        public ulong RunFloat(ulong targetCol, SystemOp op, float operand)
+            => DataLensNative.dl_store_run_f32(_handle, targetCol, (int)op, operand, 0, 0, 0, 0f);
+
+        public ulong RunFloat(ulong targetCol, SystemOp op, float operand, ulong compareCol, CompareOp cmp, float threshold)
+            => DataLensNative.dl_store_run_f32(_handle, targetCol, (int)op, operand, 1, compareCol, (int)cmp, threshold);
+
+        public ulong RunInt(ulong targetCol, SystemOp op, int operand)
+            => DataLensNative.dl_store_run_i32(_handle, targetCol, (int)op, operand, 0, 0, 0, 0);
+
+        public ulong RunInt(ulong targetCol, SystemOp op, int operand, ulong compareCol, CompareOp cmp, int threshold)
+            => DataLensNative.dl_store_run_i32(_handle, targetCol, (int)op, operand, 1, compareCol, (int)cmp, threshold);
+
         public void Dispose()
         {
             if (_handle != IntPtr.Zero)

@@ -15,6 +15,11 @@ namespace Heathen.DataLens
         internal static extern int dl_abi_version();
 
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_smallest_uint_type(ulong maxValue);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_smallest_int_type(long minValue, long maxValue);
+
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern System.IntPtr dl_store_create(
             [In, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPStr)] string[] colNames,
             [In] int[] colTypes,
@@ -52,5 +57,19 @@ namespace Heathen.DataLens
         internal static extern void dl_store_set_valid(System.IntPtr store, ulong row, int valid);
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int dl_store_is_valid(System.IntPtr store, ulong row);
+
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_alloc_row(System.IntPtr store);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_store_free_row(System.IntPtr store, ulong row);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_live_count(System.IntPtr store);
+
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_run_f32(System.IntPtr store, ulong targetCol, int op, float operand,
+            int hasPredicate, ulong compareCol, int cmp, float threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_run_i32(System.IntPtr store, ulong targetCol, int op, int operand,
+            int hasPredicate, ulong compareCol, int cmp, int threshold);
     }
 }
