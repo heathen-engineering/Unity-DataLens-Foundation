@@ -163,6 +163,12 @@ namespace Heathen.DataLens
         internal static extern void dl_lens_refresh_view(System.IntPtr lens, System.IntPtr view, System.IntPtr store);
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void dl_lens_refresh_view_lod(System.IntPtr lens, System.IntPtr view, System.IntPtr store, int minLod, int maxLod);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_f32_pred_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, float operand, ulong compareCol, int cmp, int threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_i32_pred_f32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, int operand, ulong compareCol, int cmp, float threshold);
 
         // ── Read-only DataView (A5) ──────────────────────────────────────────
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]

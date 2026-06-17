@@ -132,6 +132,28 @@ namespace Heathen.DataLens
         public void RefreshViewInLodBand(DataView view, DataStore store, int minLod, int maxLod)
             => DataLensNative.dl_lens_refresh_view_lod(_handle, view.Handle, store.Handle, minLod, maxLod);
 
+        /// <summary>
+        /// Mixed-type predicate System: apply a float op (<paramref name="targetCol"/> = targetCol OP
+        /// operand) to every live row where an <b>Int32</b> predicate column satisfies (cmp threshold),
+        /// in one branchless parallel pass. The fused "gate a float-attribute effect by an int
+        /// tag-bitmask column" primitive (use <see cref="CompareOp.HasAllBits"/>/<c>HasAnyBits</c>/<c>LacksBits</c>).
+        /// Returns rows affected.
+        /// </summary>
+        public ulong RunFloatWhereInt(DataStore store, ulong targetCol, SystemOp op, float operand,
+            ulong compareCol, CompareOp cmp, int threshold)
+            => DataLensNative.dl_lens_run_f32_pred_i32(_handle, store.Handle, targetCol, (int)op, operand,
+                compareCol, (int)cmp, threshold);
+
+        /// <summary>
+        /// Mixed-type predicate System (mirror of <see cref="RunFloatWhereInt"/>): an Int32 op gated by a
+        /// <b>float</b> predicate column — e.g. knock out an int eligibility flag where a float resource
+        /// column is below a threshold. Returns rows affected.
+        /// </summary>
+        public ulong RunIntWhereFloat(DataStore store, ulong targetCol, SystemOp op, int operand,
+            ulong compareCol, CompareOp cmp, float threshold)
+            => DataLensNative.dl_lens_run_i32_pred_f32(_handle, store.Handle, targetCol, (int)op, operand,
+                compareCol, (int)cmp, threshold);
+
         public void Dispose()
         {
             if (_handle != IntPtr.Zero)
