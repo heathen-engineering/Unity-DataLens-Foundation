@@ -52,6 +52,15 @@ namespace Heathen.DataLens
         public void SetValid(ulong row, bool valid) => DataLensNative.dl_store_set_valid(_handle, row, valid ? 1 : 0);
         public bool IsValid(ulong row) => DataLensNative.dl_store_is_valid(_handle, row) != 0;
 
+        /// <summary>
+        /// Set a row's Simulation LOD level (0 = highest fidelity / always runs, higher = coarser).
+        /// Per-row relevance metadata a System can scope its work to via <see cref="Lens.RunBatchInLodBand"/>.
+        /// </summary>
+        public void SetLod(ulong row, int level) => DataLensNative.dl_store_set_lod(_handle, row, level);
+
+        /// <summary>Get a row's Simulation LOD level.</summary>
+        public int GetLod(ulong row) => DataLensNative.dl_store_get_lod(_handle, row);
+
         /// <summary>Sentinel returned by <see cref="AllocRow"/> when the store is at capacity.</summary>
         public const ulong InvalidRow = ulong.MaxValue;
 
@@ -79,6 +88,21 @@ namespace Heathen.DataLens
 
         public ulong RunInt(ulong targetCol, SystemOp op, int operand, ulong compareCol, CompareOp cmp, int threshold)
             => DataLensNative.dl_store_run_i32(_handle, targetCol, (int)op, operand, 1, compareCol, (int)cmp, threshold);
+
+        // Cross-column Systems (A3.3): the operand is read per-row from operandCol instead of being a
+        // scalar — e.g. (targetCol = targetCol + operandCol) or a per-row clamp (current = min(current, maxCol)).
+
+        public ulong RunFloatColumn(ulong targetCol, SystemOp op, ulong operandCol)
+            => DataLensNative.dl_store_run_col_f32(_handle, targetCol, (int)op, operandCol, 0, 0, 0, 0f);
+
+        public ulong RunFloatColumn(ulong targetCol, SystemOp op, ulong operandCol, ulong compareCol, CompareOp cmp, float threshold)
+            => DataLensNative.dl_store_run_col_f32(_handle, targetCol, (int)op, operandCol, 1, compareCol, (int)cmp, threshold);
+
+        public ulong RunIntColumn(ulong targetCol, SystemOp op, ulong operandCol)
+            => DataLensNative.dl_store_run_col_i32(_handle, targetCol, (int)op, operandCol, 0, 0, 0, 0);
+
+        public ulong RunIntColumn(ulong targetCol, SystemOp op, ulong operandCol, ulong compareCol, CompareOp cmp, int threshold)
+            => DataLensNative.dl_store_run_col_i32(_handle, targetCol, (int)op, operandCol, 1, compareCol, (int)cmp, threshold);
 
         public void Dispose()
         {

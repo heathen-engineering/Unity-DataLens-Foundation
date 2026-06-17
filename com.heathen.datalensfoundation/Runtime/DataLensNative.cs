@@ -58,6 +58,12 @@ namespace Heathen.DataLens
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int dl_store_is_valid(System.IntPtr store, ulong row);
 
+        // Per-row Simulation LOD (A3.5).
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_store_set_lod(System.IntPtr store, ulong row, int level);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_store_get_lod(System.IntPtr store, ulong row);
+
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong dl_store_alloc_row(System.IntPtr store);
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
@@ -70,6 +76,14 @@ namespace Heathen.DataLens
             int hasPredicate, ulong compareCol, int cmp, float threshold);
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong dl_store_run_i32(System.IntPtr store, ulong targetCol, int op, int operand,
+            int hasPredicate, ulong compareCol, int cmp, int threshold);
+
+        // Cross-column Systems (A3.3): operand read per-row from operandCol.
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_run_col_f32(System.IntPtr store, ulong targetCol, int op, ulong operandCol,
+            int hasPredicate, ulong compareCol, int cmp, float threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_run_col_i32(System.IntPtr store, ulong targetCol, int op, ulong operandCol,
             int hasPredicate, ulong compareCol, int cmp, int threshold);
 
         // ── Lens (parallel Systems) ──────────────────────────────────────────
@@ -86,5 +100,96 @@ namespace Heathen.DataLens
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong dl_lens_run_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
             int op, int operand, int hasPredicate, ulong compareCol, int cmp, int threshold);
+
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_col_f32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, ulong operandCol, int hasPredicate, ulong compareCol, int cmp, float threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_col_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, ulong operandCol, int hasPredicate, ulong compareCol, int cmp, int threshold);
+
+        // Batched Systems (A3.4): an array of blittable SystemDesc marshals across in one call.
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_batch(System.IntPtr lens,
+            [In] SystemDesc[] descs, ulong count);
+
+        // Batched Systems over a LOD band (A3.5): the band applies to every System in the batch.
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_batch_lod(System.IntPtr lens,
+            [In] SystemDesc[] descs, ulong count, int minLod, int maxLod);
+
+        // ── Query/Update IR (A4.2) ───────────────────────────────────────────
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_ir_create();
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_ir_destroy(System.IntPtr program);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_ir_add_system(System.IntPtr program, ref IrOp op);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_ir_count(System.IntPtr program);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_ir_serialize(System.IntPtr program, [Out] byte[] buf, ulong bufLen);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_ir_deserialize([In] byte[] data, ulong size);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_execute(System.IntPtr lens, System.IntPtr program,
+            [In] System.IntPtr[] stores, ulong storeCount);
+
+        // ── Tick / cadence scheduler (A5) ────────────────────────────────────
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_add_scheduled_program(System.IntPtr lens, System.IntPtr program,
+            ulong period, int minLod, int maxLod, ulong phase);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_lens_clear_schedule(System.IntPtr lens);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_scheduled_program_count(System.IntPtr lens);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_add_scheduled_view(System.IntPtr lens, System.IntPtr view,
+            ulong storeIndex, ulong period, ulong phase);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_add_scheduled_view_lod(System.IntPtr lens, System.IntPtr view,
+            ulong storeIndex, ulong period, int minLod, int maxLod, ulong phase);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_lens_clear_scheduled_views(System.IntPtr lens);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_scheduled_view_count(System.IntPtr lens);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_current_tick(System.IntPtr lens);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_lens_reset_tick(System.IntPtr lens, ulong tick);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_tick(System.IntPtr lens, [In] System.IntPtr[] stores, ulong storeCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_lens_refresh_view(System.IntPtr lens, System.IntPtr view, System.IntPtr store);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_lens_refresh_view_lod(System.IntPtr lens, System.IntPtr view, System.IntPtr store, int minLod, int maxLod);
+
+        // ── Read-only DataView (A5) ──────────────────────────────────────────
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_view_create([In] ulong[] sourceColumns, ulong columnCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_view_destroy(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_view_refresh(System.IntPtr view, System.IntPtr store);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_view_refresh_lod(System.IntPtr view, System.IntPtr store, int minLod, int maxLod);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_view_row_count(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_view_column_count(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_view_row_stride(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_view_source_row(System.IntPtr view, ulong viewRow);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_view_get_f32(System.IntPtr view, ulong viewRow, ulong viewCol, out float value);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_view_get_i32(System.IntPtr view, ulong viewRow, ulong viewCol, out int value);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_view_get_f64(System.IntPtr view, ulong viewRow, ulong viewCol, out double value);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_view_data(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_view_byte_size(System.IntPtr view);
     }
 }
