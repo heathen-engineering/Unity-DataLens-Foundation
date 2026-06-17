@@ -11,6 +11,9 @@ namespace Heathen.DataLens
     {
         private IntPtr _handle;
 
+        /// <summary>Native handle, for sibling Foundation types (e.g. <see cref="Lens"/>) to pass across the ABI.</summary>
+        internal IntPtr Handle => _handle;
+
         /// <summary>The native C ABI version the loaded library reports.</summary>
         public static int NativeAbiVersion => DataLensNative.dl_abi_version();
 

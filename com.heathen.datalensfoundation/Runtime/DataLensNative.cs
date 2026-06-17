@@ -71,5 +71,20 @@ namespace Heathen.DataLens
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong dl_store_run_i32(System.IntPtr store, ulong targetCol, int op, int operand,
             int hasPredicate, ulong compareCol, int cmp, int threshold);
+
+        // ── Lens (parallel Systems) ──────────────────────────────────────────
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_lens_create(int threadCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_lens_destroy(System.IntPtr lens);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_lens_thread_count(System.IntPtr lens);
+
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_f32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, float operand, int hasPredicate, ulong compareCol, int cmp, float threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, int operand, int hasPredicate, ulong compareCol, int cmp, int threshold);
     }
 }
