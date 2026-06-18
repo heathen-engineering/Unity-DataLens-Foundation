@@ -108,6 +108,43 @@ namespace Heathen.DataLens
         internal static extern ulong dl_lens_run_col_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
             int op, ulong operandCol, int hasPredicate, ulong compareCol, int cmp, int threshold);
 
+        // Parallel curved cross-column Systems (A3.11): rhs = curve(operandCol[r]) before the combine.
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_curved_f32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, ulong operandCol, int curveType, float curveMin, float curveMax, float curveP0, float curveP1,
+            int curveInvert, int hasPredicate, ulong compareCol, int cmp, float threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_curved_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, ulong operandCol, int curveType, float curveMin, float curveMax, float curveP0, float curveP1,
+            int curveInvert, int hasPredicate, ulong compareCol, int cmp, int threshold);
+
+        // Counter-based noise (A3.11/A3.12): fill `target = target OP noise` and perturb `target = target OP
+        // (operandCol[r] * noise)`, noise = lo + (hi-lo)*u01(row,tick,seed). Stateless, reproducible PRNG.
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_noise_f32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, float noiseLo, float noiseHi, ulong seed, ulong tick,
+            int hasPredicate, ulong compareCol, int cmp, float threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_noise_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, int noiseLo, int noiseHi, ulong seed, ulong tick,
+            int hasPredicate, ulong compareCol, int cmp, int threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_noise_perturb_f32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, ulong operandCol, float noiseLo, float noiseHi, ulong seed, ulong tick,
+            int hasPredicate, ulong compareCol, int cmp, float threshold);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_noise_perturb_i32(System.IntPtr lens, System.IntPtr store, ulong targetCol,
+            int op, ulong operandCol, int noiseLo, int noiseHi, ulong seed, ulong tick,
+            int hasPredicate, ulong compareCol, int cmp, int threshold);
+
+        // Argmax-across-columns (A3.13): reduce K score columns to a per-row Choice index column.
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_argmax_f32(System.IntPtr lens, System.IntPtr store, ulong choiceCol,
+            [In] ulong[] scoreCols, ulong scoreColCount, float minScore, int noChoice);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_run_argmax_i32(System.IntPtr lens, System.IntPtr store, ulong choiceCol,
+            [In] ulong[] scoreCols, ulong scoreColCount, int minScore, int noChoice);
+
         // Batched Systems (A3.4): an array of blittable SystemDesc marshals across in one call.
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong dl_lens_run_batch(System.IntPtr lens,

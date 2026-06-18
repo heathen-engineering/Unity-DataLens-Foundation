@@ -51,6 +51,94 @@ namespace Heathen.DataLens
         public ulong RunIntColumn(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, ulong compareCol, CompareOp cmp, int threshold)
             => DataLensNative.dl_lens_run_col_i32(_handle, store.Handle, targetCol, (int)op, operandCol, 1, compareCol, (int)cmp, threshold);
 
+        // ── Curved cross-column Systems (A3.11) ──────────────────────────────
+        // targetCol = targetCol OP curve(operandCol[r]): the per-row operand is normalised over the
+        // curve's range and passed through its shape before the combine — one HATE §8 consideration
+        // (e.g. score *= curve(distance)). Run in parallel across the pool. Returns rows affected.
+
+        /// <summary>Curved cross-column Float System (A3.11). See <see cref="Curve"/>.</summary>
+        public ulong RunFloatCurved(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, Curve curve)
+            => DataLensNative.dl_lens_run_curved_f32(_handle, store.Handle, targetCol, (int)op, operandCol,
+                (int)curve.Type, curve.Min, curve.Max, curve.P0, curve.P1, curve.Invert ? 1 : 0, 0, 0, 0, 0f);
+
+        /// <summary>Curved cross-column Float System gated on (compareCol CMP threshold).</summary>
+        public ulong RunFloatCurved(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, Curve curve,
+            ulong compareCol, CompareOp cmp, float threshold)
+            => DataLensNative.dl_lens_run_curved_f32(_handle, store.Handle, targetCol, (int)op, operandCol,
+                (int)curve.Type, curve.Min, curve.Max, curve.P0, curve.P1, curve.Invert ? 1 : 0, 1, compareCol, (int)cmp, threshold);
+
+        /// <summary>Curved cross-column Int32 System (A3.11). See <see cref="Curve"/>.</summary>
+        public ulong RunIntCurved(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, Curve curve)
+            => DataLensNative.dl_lens_run_curved_i32(_handle, store.Handle, targetCol, (int)op, operandCol,
+                (int)curve.Type, curve.Min, curve.Max, curve.P0, curve.P1, curve.Invert ? 1 : 0, 0, 0, 0, 0);
+
+        /// <summary>Curved cross-column Int32 System gated on (compareCol CMP threshold).</summary>
+        public ulong RunIntCurved(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, Curve curve,
+            ulong compareCol, CompareOp cmp, int threshold)
+            => DataLensNative.dl_lens_run_curved_i32(_handle, store.Handle, targetCol, (int)op, operandCol,
+                (int)curve.Type, curve.Min, curve.Max, curve.P0, curve.P1, curve.Invert ? 1 : 0, 1, compareCol, (int)cmp, threshold);
+
+        // ── Counter-based noise (A3.12) ──────────────────────────────────────
+        // `target = target OP noise` (fill) or `target = target OP (operandCol[r] * noise)` (perturb),
+        // noise = lo + (hi-lo)*u01(row, tick, seed). The PRNG is stateless and keyed on the GLOBAL row
+        // index, so results are reproducible across runs/machines/replay and identical serial-vs-parallel.
+        // `tick` is the caller's sim clock (pass the same tick for a reproducible per-tick draw). The
+        // perturb form is the HATE §8.4 `Score += Variance * Noise`: zero-Variance rows are unchanged.
+
+        /// <summary>Counter-based noise fill (A3.12): targetCol = targetCol OP noise over [noiseLo,noiseHi).</summary>
+        public ulong RunFloatNoise(DataStore store, ulong targetCol, SystemOp op, float noiseLo, float noiseHi, ulong seed, ulong tick)
+            => DataLensNative.dl_lens_run_noise_f32(_handle, store.Handle, targetCol, (int)op, noiseLo, noiseHi, seed, tick, 0, 0, 0, 0f);
+
+        /// <summary>Counter-based Float noise fill gated on (compareCol CMP threshold).</summary>
+        public ulong RunFloatNoise(DataStore store, ulong targetCol, SystemOp op, float noiseLo, float noiseHi, ulong seed, ulong tick,
+            ulong compareCol, CompareOp cmp, float threshold)
+            => DataLensNative.dl_lens_run_noise_f32(_handle, store.Handle, targetCol, (int)op, noiseLo, noiseHi, seed, tick, 1, compareCol, (int)cmp, threshold);
+
+        /// <summary>Counter-based Int32 noise fill.</summary>
+        public ulong RunIntNoise(DataStore store, ulong targetCol, SystemOp op, int noiseLo, int noiseHi, ulong seed, ulong tick)
+            => DataLensNative.dl_lens_run_noise_i32(_handle, store.Handle, targetCol, (int)op, noiseLo, noiseHi, seed, tick, 0, 0, 0, 0);
+
+        /// <summary>Counter-based Int32 noise fill gated on (compareCol CMP threshold).</summary>
+        public ulong RunIntNoise(DataStore store, ulong targetCol, SystemOp op, int noiseLo, int noiseHi, ulong seed, ulong tick,
+            ulong compareCol, CompareOp cmp, int threshold)
+            => DataLensNative.dl_lens_run_noise_i32(_handle, store.Handle, targetCol, (int)op, noiseLo, noiseHi, seed, tick, 1, compareCol, (int)cmp, threshold);
+
+        /// <summary>Counter-based noise perturb (A3.12 / HATE §8.4): targetCol = targetCol OP (operandCol[r] * noise).</summary>
+        public ulong RunFloatNoisePerturb(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, float noiseLo, float noiseHi, ulong seed, ulong tick)
+            => DataLensNative.dl_lens_run_noise_perturb_f32(_handle, store.Handle, targetCol, (int)op, operandCol, noiseLo, noiseHi, seed, tick, 0, 0, 0, 0f);
+
+        /// <summary>Float noise perturb gated on (compareCol CMP threshold).</summary>
+        public ulong RunFloatNoisePerturb(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, float noiseLo, float noiseHi, ulong seed, ulong tick,
+            ulong compareCol, CompareOp cmp, float threshold)
+            => DataLensNative.dl_lens_run_noise_perturb_f32(_handle, store.Handle, targetCol, (int)op, operandCol, noiseLo, noiseHi, seed, tick, 1, compareCol, (int)cmp, threshold);
+
+        /// <summary>Int32 noise perturb: targetCol = targetCol OP (operandCol[r] * noise).</summary>
+        public ulong RunIntNoisePerturb(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, int noiseLo, int noiseHi, ulong seed, ulong tick)
+            => DataLensNative.dl_lens_run_noise_perturb_i32(_handle, store.Handle, targetCol, (int)op, operandCol, noiseLo, noiseHi, seed, tick, 0, 0, 0, 0);
+
+        /// <summary>Int32 noise perturb gated on (compareCol CMP threshold).</summary>
+        public ulong RunIntNoisePerturb(DataStore store, ulong targetCol, SystemOp op, ulong operandCol, int noiseLo, int noiseHi, ulong seed, ulong tick,
+            ulong compareCol, CompareOp cmp, int threshold)
+            => DataLensNative.dl_lens_run_noise_perturb_i32(_handle, store.Handle, targetCol, (int)op, operandCol, noiseLo, noiseHi, seed, tick, 1, compareCol, (int)cmp, threshold);
+
+        // ── Argmax-across-columns (A3.13) ────────────────────────────────────
+        // Reduce K score columns to a per-row Choice index column (the HATE §8.5 AI selection "pick"):
+        // for each live actor, write the index of the largest score into choiceCol. Ties resolve to the
+        // lowest index; a winning score below minScore writes noChoice (default -1 = "do nothing", which
+        // composes with the §8.5 Choice>=0 Command override). Runs in parallel across the pool.
+
+        /// <summary>Argmax over Float score columns -> Choice index column (A3.13).</summary>
+        public ulong RunFloatArgmax(DataStore store, ulong choiceCol, ulong[] scoreCols,
+            float minScore = float.NegativeInfinity, int noChoice = -1)
+            => DataLensNative.dl_lens_run_argmax_f32(_handle, store.Handle, choiceCol,
+                scoreCols ?? System.Array.Empty<ulong>(), (ulong)(scoreCols?.Length ?? 0), minScore, noChoice);
+
+        /// <summary>Argmax over Int32 score columns -> Choice index column (A3.13).</summary>
+        public ulong RunIntArgmax(DataStore store, ulong choiceCol, ulong[] scoreCols,
+            int minScore = int.MinValue, int noChoice = -1)
+            => DataLensNative.dl_lens_run_argmax_i32(_handle, store.Handle, choiceCol,
+                scoreCols ?? System.Array.Empty<ulong>(), (ulong)(scoreCols?.Length ?? 0), minScore, noChoice);
+
         // ── Batched Systems (A3.4) ───────────────────────────────────────────
         // Run a whole batch of data-described Systems in one call. The Lens runs non-conflicting
         // Systems concurrently and preserves submission order for conflicting ones, so the result is

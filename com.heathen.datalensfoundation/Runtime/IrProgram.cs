@@ -7,7 +7,7 @@ namespace Heathen.DataLens
     /// One operation in a DataLens IR program (A4): a System (column transform) described as data,
     /// referencing its store by INDEX into the table passed to <see cref="Lens.Execute"/> /
     /// <see cref="Lens.Tick"/>. Build with the static factories. Blittable; mirrors native
-    /// <c>dl_ir_op</c> exactly (fixed 64-byte layout).
+    /// <c>dl_ir_op</c> exactly (fixed 96-byte layout: 12×int32 + 2×double + 4×int32 + 4×float).
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct IrOp
@@ -26,6 +26,17 @@ namespace Heathen.DataLens
         internal int Pad;
         internal double Operand;
         internal double Threshold;
+        // Response curve (A3.11): when ApplyCurve, the per-row cross-column operand is normalised over
+        // [CurveMin,CurveMax] and passed through CurveType before the combine. MUST mirror the native
+        // dl_ir_op tail exactly (4×int32 then 4×float) — the struct is marshalled by value to the C ABI.
+        internal int ApplyCurve;
+        internal int CurveType;
+        internal int CurveInvert;
+        internal int Pad2;
+        internal float CurveMin;
+        internal float CurveMax;
+        internal float CurveP0;
+        internal float CurveP1;
 
         private static IrOp Base(int storeIndex, DataLensValueType elem, int targetCol, SystemOp op)
             => new IrOp
@@ -60,6 +71,25 @@ namespace Heathen.DataLens
             o.OperandIsColumn = 1; o.OperandCol = operandCol; return o;
         }
 
+        /// <summary>
+        /// Cross-column op whose per-row operand is passed through a response curve before the combine
+        /// (A3.11) — one HATE §8 consideration: <c>score COMBINE= curve(metricCol)</c>.
+        /// </summary>
+        public static IrOp CurvedColumn(int storeIndex, DataLensValueType elem, int targetCol, SystemOp op, int operandCol, Curve curve)
+        {
+            var o = Base(storeIndex, elem, targetCol, op);
+            o.OperandIsColumn = 1; o.OperandCol = operandCol;
+            return o.WithCurve(curve);
+        }
+
+        /// <summary>Float cross-column curved op.</summary>
+        public static IrOp FloatCurvedColumn(int storeIndex, int targetCol, SystemOp op, int operandCol, Curve curve)
+            => CurvedColumn(storeIndex, DataLensValueType.Float, targetCol, op, operandCol, curve);
+
+        /// <summary>Int32 cross-column curved op.</summary>
+        public static IrOp IntCurvedColumn(int storeIndex, int targetCol, SystemOp op, int operandCol, Curve curve)
+            => CurvedColumn(storeIndex, DataLensValueType.Int32, targetCol, op, operandCol, curve);
+
         /// <summary>Gate this op on (compareCol CMP threshold).</summary>
         public IrOp WithPredicate(int compareCol, CompareOp cmp, double threshold)
         {
@@ -68,6 +98,21 @@ namespace Heathen.DataLens
 
         /// <summary>Restrict this op to the Simulation LOD band [minLod, maxLod].</summary>
         public IrOp WithLodBand(int minLod, int maxLod) { MinLod = minLod; MaxLod = maxLod; return this; }
+
+        /// <summary>
+        /// Attach a response curve to a cross-column op (<see cref="OperandIsColumn"/> must already be set,
+        /// i.e. built via <see cref="IntColumn"/>/<see cref="FloatColumn"/>). The per-row operand is
+        /// normalised over the curve's range and passed through its shape before the combine (A3.11).
+        /// </summary>
+        public IrOp WithCurve(Curve curve)
+        {
+            ApplyCurve = 1;
+            CurveType = (int)curve.Type;
+            CurveInvert = curve.Invert ? 1 : 0;
+            CurveMin = curve.Min; CurveMax = curve.Max;
+            CurveP0 = curve.P0; CurveP1 = curve.P1;
+            return this;
+        }
     }
 
     /// <summary>

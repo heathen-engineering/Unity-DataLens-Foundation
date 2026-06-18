@@ -30,6 +30,18 @@ namespace Heathen.DataLens
         internal ulong CompareCol;
         internal double Operand;
         internal double Threshold;
+        // Response curve (A3.11): when ApplyCurve, the per-row cross-column operand is normalised over
+        // [CurveMin,CurveMax] and passed through CurveType before the combine. These MUST mirror the
+        // native dl_system_desc tail exactly (4×int32 then 4×float) — the struct is marshalled as a
+        // blittable array, so a layout mismatch silently corrupts every element's stride.
+        internal int ApplyCurve;
+        internal int CurveType;
+        internal int CurveInvert;
+        internal int Pad2;
+        internal float CurveMin;
+        internal float CurveMax;
+        internal float CurveP0;
+        internal float CurveP1;
 
         private static SystemDesc Make(DataStore store, DataLensValueType elem, ulong targetCol, SystemOp op,
             bool operandIsColumn, ulong operandCol, double operand,
@@ -92,5 +104,25 @@ namespace Heathen.DataLens
         public static SystemDesc FloatColumn(DataStore store, ulong targetCol, SystemOp op, ulong operandCol,
             ulong compareCol, CompareOp cmp, float threshold)
             => Make(store, DataLensValueType.Float, targetCol, op, true, operandCol, 0, true, compareCol, cmp, threshold);
+
+        // ── Response curve (A3.11) ───────────────────────────────────────────
+
+        /// <summary>
+        /// Attach a response curve to a cross-column System (A3.11): the per-row operand is normalised
+        /// over the curve's range and passed through its shape before the combine — one HATE §8
+        /// consideration. The System must already be cross-column (built via <see cref="IntColumn"/> /
+        /// <see cref="FloatColumn"/>); applying a curve to a scalar System has no defined meaning.
+        /// </summary>
+        public SystemDesc WithCurve(Curve curve)
+        {
+            ApplyCurve = 1;
+            CurveType = (int)curve.Type;
+            CurveInvert = curve.Invert ? 1 : 0;
+            CurveMin = curve.Min;
+            CurveMax = curve.Max;
+            CurveP0 = curve.P0;
+            CurveP1 = curve.P1;
+            return this;
+        }
     }
 }
