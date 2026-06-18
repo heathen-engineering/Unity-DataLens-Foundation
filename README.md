@@ -1,6 +1,6 @@
 # Unity DataLens Foundation
 
-Unity binding over the engine-agnostic native [DataLens](https://github.com/heathen-engineering)
+Unity binding over the engine-agnostic native [DataLens](https://github.com/heathen-engineering/DataLens)
 core: a cache-aware, column-oriented in-memory simulation store. Open source (Apache 2.0).
 
 > **Status: A1 walking-skeleton slice.** This is the thin vertical slice that proves the Unity
