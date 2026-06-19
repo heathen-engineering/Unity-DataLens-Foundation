@@ -71,6 +71,23 @@ namespace Heathen.DataLens
             o.OperandIsColumn = 1; o.OperandCol = operandCol; return o;
         }
 
+        /// <summary>Scalar op on a column of ANY element type (A8: UInt8..UInt64 / Int8..Int64 / Float /
+        /// Double, not just Int32/Float) — so HATE can run effects/aggregation on narrow-packed attribute
+        /// columns. The operand is carried as a double and cast to the column's type at execution.</summary>
+        public static IrOp Typed(int storeIndex, DataLensValueType elem, int targetCol, SystemOp op, double operand)
+        {
+            var o = Base(storeIndex, elem, targetCol, op); o.Operand = operand; return o;
+        }
+
+        /// <summary>Cross-column op on a column of ANY element type (A8): the per-row operand is read from
+        /// <paramref name="operandCol"/> (interpreted as the same type). Used for the HATE clamp primitive
+        /// (Current = Min(Current, Max)) on narrow columns.</summary>
+        public static IrOp TypedColumn(int storeIndex, DataLensValueType elem, int targetCol, SystemOp op, int operandCol)
+        {
+            var o = Base(storeIndex, elem, targetCol, op);
+            o.OperandIsColumn = 1; o.OperandCol = operandCol; return o;
+        }
+
         /// <summary>
         /// Cross-column op whose per-row operand is passed through a response curve before the combine
         /// (A3.11) — one HATE §8 consideration: <c>score COMBINE= curve(metricCol)</c>.
