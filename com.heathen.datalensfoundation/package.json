@@ -2,7 +2,7 @@
   "name": "com.heathen.datalensfoundation",
   "version": "0.1.0",
   "displayName": "DataLens Foundation",
-  "description": "Unity binding over the engine-agnostic native DataLens core: a cache-aware, column-oriented in-memory simulation store. A1 walking-skeleton slice (DataStore only).",
+  "description": "Unity binding over the engine-agnostic native DataLens core: a cache-aware, column-oriented in-memory simulation store. DataStore + parallel Systems + Lens orchestrator + DataView snapshots + serialisable IR + tick scheduler + utility-AI scoring (curves/noise/argmax). Linux & Windows x86_64.",
   "unity": "2021.3",
   "author": {
     "name": "Heathen Group",
