@@ -51,5 +51,50 @@ namespace Heathen.DataLens
         /// <summary>Threshold y = x &gt;= edge ? 1 : 0, normalised over [min,max].</summary>
         public static Curve Threshold(float min, float max, float edge, bool invert = false)
             => new Curve { Type = CurveType.Threshold, Min = min, Max = max, P0 = edge, P1 = 0f, Invert = invert };
+
+        // ── Managed evaluation (the canonical mirror of the native curve math, A3.11) ──
+        // One source of truth for "raw operand -> y in [0,1]" so consumers (HATE considerations, the curve
+        // editor preview, Wyrd) never re-implement the shape math.
+
+        /// <summary>Normalise a raw operand over [<see cref="Min"/>, <see cref="Max"/>] to x in [0,1]
+        /// (clamped; <see cref="Max"/> &lt;= <see cref="Min"/> → 0).</summary>
+        public float Normalise(float raw)
+        {
+            float span = Max - Min;
+            if (span <= 0f) return 0f;
+            float t = (raw - Min) / span;
+            return t < 0f ? 0f : t > 1f ? 1f : t;
+        }
+
+        /// <summary>Evaluate y in [0,1] for a raw operand: normalise over [<see cref="Min"/>, <see cref="Max"/>],
+        /// apply the <see cref="Type"/> shape, then <see cref="Invert"/>.</summary>
+        public float Evaluate(float raw) => ShapeNormalised(Normalise(raw));
+
+        /// <summary>Apply the <see cref="Type"/> shape (+ <see cref="Invert"/>) to a PRE-normalised x in [0,1]
+        /// — the curve-editor preview / draw domain.</summary>
+        public float ShapeNormalised(float x)
+        {
+            x = x < 0f ? 0f : x > 1f ? 1f : x;
+            float y;
+            switch (Type)
+            {
+                case CurveType.Power: // y = x ^ (int)P0, exponent clamped 0..16 (repeated multiply)
+                    int e = (int)(P0 < 0f ? 0f : P0 > 16f ? 16f : P0);
+                    y = 1f;
+                    for (int i = 0; i < e; i++) y *= x;
+                    break;
+                case CurveType.Smoothstep: // y = x*x*(3 - 2x)
+                    y = x * x * (3f - 2f * x);
+                    break;
+                case CurveType.Threshold: // y = x >= P0 ? 1 : 0
+                    y = x >= P0 ? 1f : 0f;
+                    break;
+                default: // Linear: y = P0*x + P1
+                    y = P0 * x + P1;
+                    break;
+            }
+            if (Invert) y = 1f - y;
+            return y < 0f ? 0f : y > 1f ? 1f : y;
+        }
     }
 }
