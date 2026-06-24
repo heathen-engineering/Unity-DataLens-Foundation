@@ -10,7 +10,7 @@ namespace Heathen.DataLens
     /// <c>dl_ir_op</c> exactly (fixed 96-byte layout: 12×int32 + 2×double + 4×int32 + 4×float).
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct IrOp
+    internal struct IrOp
     {
         internal int StoreIndex;
         internal int ElemType;
@@ -137,7 +137,7 @@ namespace Heathen.DataLens
     /// <see cref="Lens"/> executes (directly or on a cadence). Stores are referenced by index into the
     /// table supplied at execution.
     /// </summary>
-    public sealed class IrProgram : IDisposable
+    internal sealed class IrProgram : IDisposable
     {
         private IntPtr _handle;
         internal IntPtr Handle => _handle;

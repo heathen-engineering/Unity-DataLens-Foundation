@@ -27,15 +27,18 @@ Learn more or explore other ways to support @ [heathen.group/kb](https://heathen
 
 ## What it does
 
-DataLens is a data-oriented simulation database. Instead of one C# object per entity, state lives in column-major native tables and logic is expressed as **Systems** — data-described operations the engine runs branchlessly across every row in parallel. It is built on five core types:
+DataLens is a data-oriented simulation database. Instead of one C# object per entity, state lives in column-major native tables (GameplayTag-addressed), and a consumer works through **Views** and tag-addressed **Systems** — never touching a store directly (the Lens is the sole operator). The public surface:
 
 | Type | Purpose |
 |------|---------|
-| **`DataStore`** | A column-major table of fixed-width columns; entities are rows. Memcpy-speed typed cell access plus a validity bitmask for O(1) allocate/free with slot reuse. |
-| **`Lens`** | The sole operator over stores. Owns a thread pool, runs Systems in dependency-ordered parallel waves, drives the tick/cadence scheduler, and refreshes views. |
-| **`DataView`** | A read-only row-major snapshot (a copy, never an alias) of selected columns — safe to read on any thread while the Lens mutates the store. Bulk copy-out for rendering. |
-| **`IrProgram` / `IrOp`** | A flat, pointer-free, serialisable program of System operations. Build once, execute many; the seam for networking and persistence. |
-| **`Curve`** | A response-curve transform (linear / power / smoothstep / threshold) applied inside a System pass — the utility-AI scoring primitive. |
+| **`DataLensSchema` / `DataStoreSchema` / `DataColumn`** | Declare the database. A store groups index-aligned columns; a column is a `(GameplayTag id, fixed stride, default)`. Build columns with `DataColumn.Of<T>(tag)` or `DataColumn.OfType(tag, valueType)`. |
+| **`Lens`** | The sole operator. Built from a schema (it creates + owns the native stores), owns a thread pool, runs tag-addressed **Systems** (`RunSystem`/`RunSystemColumn`), opens **Views**, and drives the tick scheduler. |
+| **`DataView<TRow>`** | A typed read/write View: an `unmanaged` row struct with `[DataLensColumn]` fields + a static `From()` topology (prime store + dereference joins + a predicate filter). Zero-copy `Span<TRow>` when widths match, else marshalled; edit in place + `Commit`. |
+| **`DataLensView`** | The dynamic, column-addressed read/write View (no compile-time struct): `Get<T>`/`Set<T>` cells by column tag — for data-driven consumers (e.g. a codegen'd engine like HATE). |
+| **`DataLensFilter` / `DataLensPredicate`** | A serialisable boolean predicate tree (`Eq`/`Less`/`InRange`/`And`/`Or`/`Not`) compiled to the Core's scope program; scopes which rows a View hydrates. |
+| **`Curve`** | A response-curve transform (linear / power / smoothstep / threshold). |
+
+> The low-level store / System / IR primitives (`DataStore`, the non-generic snapshot view, `IrProgram`, `SystemDesc`) are **internal** — the Lens owns them (Coding Law 4); consumers ride Views and `RunSystem`.
 
 The following features are included:
 
@@ -74,118 +77,98 @@ The native libraries (`libdatalens.so` / `datalens.dll`) ship inside the package
 
 ## Setup & Workflow
 
-### 1. Create a Store
+### 1. Declare a schema and build a Lens
 
 ```csharp
 using Heathen.DataLens;
 
-using var store = new DataStore(
-    new[] { "PosX", "PosY", "VelX", "VelY" },
-    new[] { DataLensValueType.Float, DataLensValueType.Float,
-            DataLensValueType.Float, DataLensValueType.Float },
-    preallocRows: 100_000);
+var schema = new DataLensSchema()
+    .Add(new DataStoreSchema("Game.Movement", capacity: 100_000,
+        DataColumn.Of<float>("Game.Movement.PosX"),
+        DataColumn.Of<float>("Game.Movement.PosY"),
+        DataColumn.Of<float>("Game.Movement.VelX"),
+        DataColumn.Of<float>("Game.Movement.VelY")));
 
-// Entities are rows. Allocate from the validity bitmask (O(1), slots recycle).
-ulong agent = store.AllocRow();
-store.SetFloat(agent, col: 0, 12f); // PosX
+using var lens = new Lens(schema); // creates + owns the native stores; owns a thread pool
 ```
 
-### 2. Describe Systems and Build a Program
+### 2. Run a System (columnar, branchless, parallel)
 
 ```csharp
-using var lens = new Lens(); // owns a thread pool (0 = hardware concurrency)
-
-using var step = new IrProgram();
-step.Add(IrOp.FloatColumn(storeIndex: 0, targetCol: 0, SystemOp.Add, operandCol: 2)); // PosX += VelX
-step.Add(IrOp.FloatColumn(storeIndex: 0, targetCol: 1, SystemOp.Add, operandCol: 3)); // PosY += VelY
-
-// Run across every live row, in parallel, branchlessly.
-lens.Execute(step, store);
+// PosX += VelX across every live row of the store — tag-addressed, no store handle needed.
+lens.RunSystemColumn("Game.Movement", "Game.Movement.PosX", SystemOp.Add, "Game.Movement.VelX");
+lens.RunSystemColumn("Game.Movement", "Game.Movement.PosY", SystemOp.Add, "Game.Movement.VelY");
 ```
 
-### 3. Schedule a Tick Loop + Read via a View
+### 3. Read / write through a typed View
 
 ```csharp
-var posView = new DataView(new ulong[] { 0, 1 }); // PosX, PosY snapshot
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+struct Mover : IDataLensViewRecord
+{
+    [DataLensColumn("Game.Movement.PosX")] public float X;
+    [DataLensColumn("Game.Movement.PosY")] public float Y;
+    public static DataLensFrom From() => new DataLensFrom("Game.Movement");
+}
 
-lens.AddScheduledProgram(step, period: 1);
-lens.AddScheduledView(posView, storeIndex: 0, period: 1);
+using var view = lens.View<Mover>();
+int r = view.AddRow();                          // insert
+view.Rows[r] = new Mover { X = 12f, Y = 0f };
+view.SetState(r, ViewRowState.New);
+view.Commit();                                  // write-back to the store
 
-// Each frame:
-lens.Tick(store);                 // run due Systems, then refresh due views
-var buffer = new float[posView.RowCount * posView.ColumnCount];
-posView.CopyFloats(buffer);       // bulk read-out for rendering
+view.Refresh();                                 // re-hydrate the snapshot
+foreach (ref readonly var m in view.Rows) { /* zero-copy read of PosX/PosY */ }
 ```
 
-### 4. Utility-AI Scoring (curves + noise + argmax)
-
-```csharp
-// Score a column through a falling response curve (e.g. "want healing as HP drops")
-lens.RunFloatCurved(store, targetCol: scoreCol, SystemOp.Set, operandCol: hpCol,
-    Curve.Linear(min: 0f, max: 100f, slope: -1f, intercept: 1f));
-
-// Perturb by per-agent variance × reproducible noise, then pick the best of K score columns
-lens.RunFloatNoisePerturb(store, scoreCol, SystemOp.Add, operandCol: varianceCol,
-    noiseLo: 0f, noiseHi: 1f, seed: 1234, tick: lens.CurrentTick);
-lens.RunFloatArgmax(store, choiceCol, new ulong[] { scoreA, scoreB, scoreC });
-```
+A cross-store Entity System adds dereference joins and a filter to `From()`
+(`new DataLensFrom("...Catalog").Dereference(into, via).Where(p => p.InRange(...))`); a data-driven consumer
+uses the dynamic `lens.View(from, columnTags)` and `Get<T>`/`Set<T>` by tag instead of a row struct.
 
 -----
 
 ## API Reference
 
-### `DataStore`
+### `DataLensSchema` / `DataStoreSchema` / `DataColumn`
 
 | Member | Description |
 |--------|-------------|
-| `new DataStore(names, types, preallocRows)` | Create a fixed-capacity column table |
-| `AllocRow()` / `FreeRow(row)` | Allocate / free a row via the validity bitmask (`InvalidRow` when full) |
-| `LiveCount` / `RowCount` / `ColumnCount` / `RowStride` | Counts and layout |
-| `SetFloat`/`SetInt`/`SetDouble(row, col, v)` | Typed cell write (stride-aware) |
-| `TryGetFloat`/`TryGetInt`/`TryGetDouble(row, col, out v)` | Typed cell read |
-| `SetValid(row, valid)` / `IsValid(row)` | Liveness bit |
-| `SetLod(row, level)` / `GetLod(row)` | Per-row simulation LOD |
-| `RunFloat`/`RunInt[Column]` | Run one System over this store (scalar/cross-column, optional predicate) |
+| `new DataLensSchema().Add(DataStoreSchema)` | Declare the database (chainable) |
+| `new DataStoreSchema(tag, capacity, params DataColumn[])` | A store: index-aligned columns + a row capacity |
+| `DataColumn.Of<T>(tag[, defaultValue])` | A fixed-width column from a compile-time type |
+| `DataColumn.OfType(tag, DataLensValueType[, defaultBytes])` | A column from a runtime value type (data-driven) |
 
 ### `Lens`
 
 | Member | Description |
 |--------|-------------|
-| `new Lens(threadCount = 0)` | Create the orchestrator (0 = hardware concurrency) |
-| `Execute(program, params stores)` | Run an `IrProgram` across stores in dependency-ordered parallel waves |
-| `RunBatch(params systems)` / `RunBatchInLodBand` | Run an array of `SystemDesc` |
-| `RunFloatCurved` / `RunIntCurved` | System pass with a `Curve` transform |
-| `RunFloatNoise` / `RunFloatNoisePerturb` (+ `Int`) | Counter-based reproducible noise fill / perturb |
-| `RunFloatArgmax` / `RunIntArgmax` | Write the index of the max across K score columns |
-| `RunFloatWhereInt` / `RunIntWhereFloat` | Mixed-type predicate System |
-| `AddScheduledProgram` / `AddScheduledView(InLodBand)` | Register periodic programs / view refreshes |
-| `Tick(params stores)` | Advance the clock: run due Systems, then refresh due views |
-| `RefreshView(view, store)` (+ `InLodBand`) | Parallel re-materialise a view now |
-| `CurrentTick` / `ResetTick` | Scheduler clock |
+| `new Lens(schema, threadCount = 0)` | Build from a schema; creates + owns the native stores + a thread pool |
+| `View<TRow>(weight = 0)` | Open a typed read/write View (record struct) |
+| `View(DataLensFrom, columnTags, readOnly = null, weight = 0)` | Open a dynamic column-addressed View |
+| `RunSystem(store, col, op, operand[, compareCol, cmp, threshold])` | Tag-addressed scalar Store System (optional predicate) |
+| `RunSystemColumn(store, col, op, operandCol)` | Tag-addressed cross-column Store System |
+| `Commit()` | Weight-ordered write-back of all registered Views (heavier weight wins per cell) |
+| `Tick()` / `CurrentTick` / `ResetTick` | Advance / read the scheduler clock |
 
-### `DataView`
+### `DataView<TRow>` / `DataLensView`
 
 | Member | Description |
 |--------|-------------|
-| `new DataView(sourceColumns)` | A read-only snapshot over selected columns |
-| `Refresh(store)` / `RefreshInLodBand` | Re-materialise from the store's live rows |
-| `RowCount` / `ColumnCount` / `RowStride` | Snapshot layout |
-| `SourceRow(viewRow)` | Map a view row back to its store row |
-| `TryGetFloat`/`TryGetInt`/`TryGetDouble` | Typed cell read |
-| `CopyFloats(dst)` / `CopyInts(dst)` | Bulk one-shot read-out (for rendering) |
-| `DataPointer` / `ByteSize` | Contiguous raw buffer access |
+| `Rows` | Typed `Span<TRow>` window (zero-copy or marshalled) — `DataView<TRow>` only |
+| `Get<T>`/`Set<T>(row, columnTag)` | Dynamic cell read/write by tag — `DataLensView` only |
+| `AddRow()` | Append a New row (Insert) |
+| `GetState`/`SetState(row, ViewRowState)` | Per-row change flag (`Unchanged`/`Modified`/`New`/`Removed`) |
+| `Refresh()` / `Commit()` | Re-hydrate the snapshot / write changed rows back |
+| `RowCount` / `SourceRow(viewRow)` / `SourceJoinRow(viewRow, join)` | Layout + map a view row to its source store row(s) |
 
-### `IrProgram` / `IrOp`
+### `DataLensFrom` / `DataLensFilter` (View topology + filters)
 
 | Member | Description |
 |--------|-------------|
-| `IrOp.Float`/`Int(store, col, op, operand)` | Scalar System op |
-| `IrOp.FloatColumn`/`IntColumn(...)` | Cross-column System op |
-| `IrOp.Typed`/`TypedColumn(store, elemType, ...)` | Any-width (i8…u64/f64) System op |
-| `IrOp.CurvedColumn(...)` / `.WithCurve(curve)` | Response-curve transform |
-| `.WithPredicate(col, cmp, threshold)` / `.WithLodBand(min, max)` | Per-op predicate / LOD band |
-| `program.Add(op)` / `Count` | Build the program |
-| `Serialize()` / `Deserialize(bytes)` | Round-trip the IR (networking / persistence seam) |
+| `new DataLensFrom(primeStore)` | The base store a View reads from |
+| `.Dereference(into, via[, absentSentinel])` / `.Aligned(into)` | Glue in another store (index dereference / row-aligned) |
+| `.Where(tag, op, value)` / `.WhereInRange(tag, lo, hi)` / `.Where(p => …)` | Filters (compiled to a serialisable predicate tree) |
+| `new DataLensFilter().Eq/Less/Greater/InRange/HasAnyBits/And/Or/Not(…)` | Build a predicate tree |
 
 ### Enums & Helpers
 
@@ -217,4 +200,4 @@ Linux is built natively; Windows is a MinGW-w64 cross-build (see the Core `READM
 
 | Namespace | Contents |
 |-----------|----------|
-| `Heathen.DataLens` | All runtime types: `DataStore`, `Lens`, `DataView`, `IrProgram`/`IrOp`, `SystemDesc`, `Curve`, `Column`, and the enums |
+| `Heathen.DataLens` | The public consumer types: `DataLensSchema`/`DataStoreSchema`/`DataColumn`, `Lens`, `DataView<TRow>` (+ `IDataLensViewRecord`/`[DataLensColumn]`), `DataLensView`, `DataLensFrom`/`DataLensFilter`/`DataLensPredicate`, `Curve`, `Column`, and the enums. The store/System/IR primitives are internal. |

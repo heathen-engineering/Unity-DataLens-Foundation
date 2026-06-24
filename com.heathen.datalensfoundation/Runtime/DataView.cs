@@ -9,7 +9,7 @@ namespace Heathen.DataLens
     /// store. <see cref="Refresh"/> rebuilds it from the current store state; the Lens can also refresh
     /// it on a cadence (<see cref="Lens.AddScheduledView"/>).
     /// </summary>
-    public sealed class DataView : IDisposable
+    internal sealed class DataView : IDisposable
     {
         private IntPtr _handle;
         internal IntPtr Handle => _handle;

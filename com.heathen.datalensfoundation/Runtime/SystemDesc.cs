@@ -16,7 +16,7 @@ namespace Heathen.DataLens
     /// </para>
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct SystemDesc
+    internal struct SystemDesc
     {
         internal System.IntPtr Store;
         internal int ElemType;

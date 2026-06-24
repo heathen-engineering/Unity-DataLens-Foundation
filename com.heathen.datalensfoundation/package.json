@@ -4,6 +4,9 @@
   "displayName": "DataLens Foundation",
   "description": "Unity binding over the engine-agnostic native DataLens core: a cache-aware, column-oriented in-memory simulation store. DataStore + parallel Systems + Lens orchestrator + DataView snapshots + serialisable IR + tick scheduler + utility-AI scoring (curves/noise/argmax). Linux & Windows x86_64.",
   "unity": "2021.3",
+  "dependencies": {
+    "com.heathen.gameplaytags": "1.0.10"
+  },
   "author": {
     "name": "Heathen Group",
     "email": "support@heathen.group",

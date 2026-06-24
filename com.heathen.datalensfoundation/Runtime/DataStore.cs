@@ -7,7 +7,7 @@ namespace Heathen.DataLens
     /// wraps the native <c>DataStore</c> to prove the managed&lt;-&gt;native boundary. The
     /// full world/Lens/view surface arrives in later phases.
     /// </summary>
-    public sealed class DataStore : IDisposable
+    internal sealed class DataStore : IDisposable
     {
         private IntPtr _handle;
 
@@ -18,20 +18,19 @@ namespace Heathen.DataLens
         public static int NativeAbiVersion => DataLensNative.dl_abi_version();
 
         /// <summary>
-        /// Create a store with the given fixed-width columns and a preallocated row capacity.
+        /// Create a native store with the given column ids + byte strides, optional concatenated default
+        /// bytes (Sum(strides), or null for all-zero), and a preallocated row capacity. Core is type-blind:
+        /// the Foundation derives strides/defaults from the schema (see <see cref="DataStoreSchema"/>).
+        /// Internal: the <see cref="Lens"/> creates stores from a <see cref="DataLensSchema"/>.
         /// </summary>
-        public DataStore(string[] columnNames, DataLensValueType[] columnTypes, ulong preallocRows)
+        internal DataStore(ulong[] columnTags, ulong[] columnStrides, byte[] columnDefaults, ulong preallocRows)
         {
-            if (columnNames == null) throw new ArgumentNullException(nameof(columnNames));
-            if (columnTypes == null) throw new ArgumentNullException(nameof(columnTypes));
-            if (columnNames.Length != columnTypes.Length)
-                throw new ArgumentException("columnNames and columnTypes must be the same length.");
+            if (columnTags == null) throw new ArgumentNullException(nameof(columnTags));
+            if (columnStrides == null) throw new ArgumentNullException(nameof(columnStrides));
+            if (columnTags.Length != columnStrides.Length)
+                throw new ArgumentException("columnTags and columnStrides must be the same length.");
 
-            var types = new int[columnTypes.Length];
-            for (int i = 0; i < columnTypes.Length; i++)
-                types[i] = (int)columnTypes[i];
-
-            _handle = DataLensNative.dl_store_create(columnNames, types, columnNames.Length, preallocRows);
+            _handle = DataLensNative.dl_store_create(columnTags, columnStrides, columnDefaults, columnTags.Length, preallocRows);
             if (_handle == IntPtr.Zero)
                 throw new InvalidOperationException("Native dl_store_create failed (check column definitions).");
         }

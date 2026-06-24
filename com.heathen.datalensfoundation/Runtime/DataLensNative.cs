@@ -21,8 +21,9 @@ namespace Heathen.DataLens
 
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern System.IntPtr dl_store_create(
-            [In, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPStr)] string[] colNames,
-            [In] int[] colTypes,
+            [In] ulong[] colTags,
+            [In] ulong[] colStrides,
+            [In] byte[] colDefaults, // concatenated defaults (Sum(strides) bytes); null = all-zero
             int colCount,
             ulong preallocRows);
 
@@ -234,5 +235,84 @@ namespace Heathen.DataLens
         internal static extern System.IntPtr dl_view_data(System.IntPtr view);
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong dl_view_byte_size(System.IntPtr view);
+
+        // ---- Read/write View (DataLens-Spec.md §6.4). POD mirrors of the view IR (Sequential layout
+        // matches the C structs under natural alignment). ----
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct dl_view_join { public ulong target_store; public int aligned; public ulong index_column; public ulong absent_sentinel; }
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct dl_view_column { public ulong source; public ulong column; }
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct dl_view_scope { public ulong column; public int type; public int op; public long ivalue; public double dvalue; }
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct dl_view_write { public ulong view_column; public ulong target_store; public ulong target_column; }
+        // RPN predicate node (§6.4.1). Field order/widths mirror the C dl_view_predicate exactly.
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct dl_view_predicate
+        {
+            public int kind;       // 0 leaf, 1 and, 2 or, 3 not
+            public int is_range;
+            public int source;     // 0 = base, k>=1 = the (k-1)th join's target
+            public int column;
+            public int type;       // DataLensValueType
+            public int op;         // DataCompareOp (ignored when is_range)
+            public long ivalue;    // threshold / range lo
+            public long ivalue_hi; // range hi (integer)
+            public double dvalue;  // threshold / range lo (float/double)
+            public double dvalue_hi; // range hi (float/double)
+        }
+
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_rwview_create(ulong baseStore,
+            [In] dl_view_join[] joins, int joinCount,
+            [In] dl_view_column[] columns, int columnCount,
+            [In] dl_view_scope[] scope, int scopeCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_rwview_destroy(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_rwview_set_writeback(System.IntPtr view,
+            [In] dl_view_write[] insert, int insertCount,
+            [In] dl_view_write[] update, int updateCount,
+            [In] ulong[] deleteStores, int deleteCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_rwview_set_scope_program(System.IntPtr view,
+            [In] dl_view_predicate[] preds, int predCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_rwview_refresh(System.IntPtr view, [In] System.IntPtr[] stores, int storeCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_commit(System.IntPtr view, [In] System.IntPtr[] stores, int storeCount);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_row_count(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_column_count(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_row_stride(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_byte_size(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_rwview_data(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern System.IntPtr dl_rwview_mutable_data(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_column_offset(System.IntPtr view, ulong col);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_column_stride(System.IntPtr view, ulong col);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern byte dl_rwview_get_state(System.IntPtr view, ulong viewRow);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_rwview_set_state(System.IntPtr view, ulong viewRow, byte state);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_add_row(System.IntPtr view);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_source_base_row(System.IntPtr view, ulong viewRow);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_rwview_source_join_row(System.IntPtr view, ulong viewRow, ulong join);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_add_scheduled_rwview(System.IntPtr lens, System.IntPtr view, ulong period, ulong phase);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_lens_clear_scheduled_rwviews(System.IntPtr lens);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_scheduled_rwview_count(System.IntPtr lens);
     }
 }

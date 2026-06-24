@@ -1,12 +1,14 @@
 {
-    "name": "Heathen.DataLens.Foundation",
-    "rootNamespace": "Heathen.DataLens",
+    "name": "Heathen.DataLens.Foundation.Editor",
+    "rootNamespace": "Heathen.DataLens.Editor",
     "references": [
-        "Heathen.GameplayTags"
+        "Heathen.DataLens.Foundation"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
-    "allowUnsafeCode": true,
+    "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
