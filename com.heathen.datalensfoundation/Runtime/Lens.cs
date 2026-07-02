@@ -25,6 +25,7 @@ namespace Heathen.DataLens
             _handle = DataLensNative.dl_lens_create(threadCount);
             if (_handle == IntPtr.Zero)
                 throw new InvalidOperationException("Native dl_lens_create failed.");
+            DataLensSubsystem.RegisterLens();
         }
 
         /// <summary>
@@ -633,6 +634,7 @@ namespace Heathen.DataLens
             {
                 DataLensNative.dl_lens_destroy(_handle);
                 _handle = IntPtr.Zero;
+                DataLensSubsystem.UnregisterLens();
             }
             GC.SuppressFinalize(this);
         }

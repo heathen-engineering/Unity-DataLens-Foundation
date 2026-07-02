@@ -2,7 +2,9 @@
     "name": "Heathen.DataLens.Foundation.Editor",
     "rootNamespace": "Heathen.DataLens.Editor",
     "references": [
-        "Heathen.DataLens.Foundation"
+        "Heathen.DataLens.Foundation",
+        "Heathen.GameFramework",
+        "Heathen.GameFramework.Editor"
     ],
     "includePlatforms": [
         "Editor"

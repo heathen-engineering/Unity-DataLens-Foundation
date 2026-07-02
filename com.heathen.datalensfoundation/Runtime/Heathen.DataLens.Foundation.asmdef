@@ -2,6 +2,7 @@
     "name": "Heathen.DataLens.Foundation",
     "rootNamespace": "Heathen.DataLens",
     "references": [
+        "Heathen.GameFramework",
         "Heathen.GameplayTags"
     ],
     "includePlatforms": [],
