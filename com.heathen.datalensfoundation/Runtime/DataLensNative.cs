@@ -169,6 +169,27 @@ namespace Heathen.DataLens
         internal static extern ulong dl_ir_serialize(System.IntPtr program, [Out] byte[] buf, ulong bufLen);
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern System.IntPtr dl_ir_deserialize([In] byte[] data, ulong size);
+
+        // Replication (DataLens-Spec §10). Snapshot/delta write up to bufLen bytes and return the byte
+        // count the payload needs (call with buf==null to query the size, then fill). scopeBits is a
+        // row-index bitmask (null = all rows). apply_payload returns 1 on success, 0 on a bad payload.
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_revision(System.IntPtr store);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_store_set_revision(System.IntPtr store, ulong revision);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_store_bump_revision(System.IntPtr store);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void dl_store_mark_column_dirty(System.IntPtr store, ulong col);
+
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_snapshot(System.IntPtr lens, System.IntPtr store,
+            [In] ulong[] scopeBits, ulong scopeWords, [Out] byte[] buf, ulong bufLen);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ulong dl_lens_collect_delta(System.IntPtr lens, System.IntPtr store, ulong sinceRevision,
+            [In] ulong[] scopeBits, ulong scopeWords, [Out] byte[] buf, ulong bufLen);
+        [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int dl_lens_apply_payload(System.IntPtr lens, System.IntPtr store, [In] byte[] data, ulong size);
         [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
         internal static extern ulong dl_lens_execute(System.IntPtr lens, System.IntPtr program,
             [In] System.IntPtr[] stores, ulong storeCount);

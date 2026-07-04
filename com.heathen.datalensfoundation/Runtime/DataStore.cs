@@ -72,6 +72,16 @@ namespace Heathen.DataLens
         /// <summary>Number of currently-valid (live) rows.</summary>
         public ulong LiveCount => DataLensNative.dl_store_live_count(_handle);
 
+        // ── Replication (DataLens-Spec §10) ──────────────────────────────────
+        /// <summary>The store's monotonic replication revision (the host advances it once per network tick).</summary>
+        public ulong Revision => DataLensNative.dl_store_revision(_handle);
+        /// <summary>Adopt a revision (e.g. after applying a payload out of band).</summary>
+        public void SetRevision(ulong revision) => DataLensNative.dl_store_set_revision(_handle, revision);
+        /// <summary>Increment and return the revision (start of a network tick, before applying its writes).</summary>
+        public ulong BumpRevision() => DataLensNative.dl_store_bump_revision(_handle);
+        /// <summary>Stamp a column as changed at the current revision (the Lens does this for committed writes).</summary>
+        public void MarkColumnDirty(ulong col) => DataLensNative.dl_store_mark_column_dirty(_handle, col);
+
         // ── Systems (A3) ─────────────────────────────────────────────────────
         // Run a conditional column transform over all live rows: where the optional predicate
         // (compareCol CMP threshold) holds, apply (targetCol = targetCol OP operand). Returns rows affected.

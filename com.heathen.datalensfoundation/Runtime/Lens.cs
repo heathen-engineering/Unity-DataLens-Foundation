@@ -577,6 +577,55 @@ namespace Heathen.DataLens
         public ulong CurrentTick => DataLensNative.dl_lens_current_tick(_handle);
         public void ResetTick(ulong tick = 0) => DataLensNative.dl_lens_reset_tick(_handle, tick);
 
+        // ── Replication (DataLens-Spec §10) ──────────────────────────────────
+        // The Lens is the public replication surface (§10.2): Systems + view-commits mark what changed
+        // (per-column stamps + a validity ring), and these read/apply at a commit boundary. A host advances
+        // a store's revision once per network tick (BumpRevision) before applying that tick's writes, then
+        // per observer collects a delta against that observer's acknowledged revision. scope is a row-index
+        // bitmask (null = all rows) = the host's interest-management result. Row indices are the stable ids.
+
+        /// <summary>The store's monotonic replication revision.</summary>
+        public ulong Revision(GameplayTag store) => ResolveStore(store, out _).Revision;
+        /// <summary>Advance a store's revision (start of a network tick, before applying its writes).</summary>
+        public ulong BumpRevision(GameplayTag store) => ResolveStore(store, out _).BumpRevision();
+        /// <summary>Adopt a store's revision (e.g. after applying a payload out of band).</summary>
+        public void SetRevision(GameplayTag store, ulong revision) => ResolveStore(store, out _).SetRevision(revision);
+
+        /// <summary>Full scoped baseline of a store's live rows (late-join / resync).</summary>
+        public byte[] Snapshot(GameplayTag store, ulong[] scope = null) => Snapshot(ResolveStore(store, out _), scope);
+
+        /// <summary>Scoped delta of everything the store changed after <paramref name="sinceRevision"/>
+        /// (transparently falls back to a full snapshot when the observer lagged past the change horizon).</summary>
+        public byte[] CollectDelta(GameplayTag store, ulong sinceRevision, ulong[] scope = null)
+            => CollectDelta(ResolveStore(store, out _), sinceRevision, scope);
+
+        /// <summary>Apply a received snapshot/delta as an authoritative commit. False on a bad payload.</summary>
+        public bool ApplyPayload(GameplayTag store, byte[] payload) => ApplyPayload(ResolveStore(store, out _), payload);
+
+        internal byte[] Snapshot(DataStore store, ulong[] scope = null)
+        {
+            ulong words = scope == null ? 0UL : (ulong)scope.Length;
+            ulong size = DataLensNative.dl_lens_snapshot(_handle, store.Handle, scope, words, null, 0);
+            var buf = new byte[size];
+            if (size > 0) DataLensNative.dl_lens_snapshot(_handle, store.Handle, scope, words, buf, size);
+            return buf;
+        }
+
+        internal byte[] CollectDelta(DataStore store, ulong sinceRevision, ulong[] scope = null)
+        {
+            ulong words = scope == null ? 0UL : (ulong)scope.Length;
+            ulong size = DataLensNative.dl_lens_collect_delta(_handle, store.Handle, sinceRevision, scope, words, null, 0);
+            var buf = new byte[size];
+            if (size > 0) DataLensNative.dl_lens_collect_delta(_handle, store.Handle, sinceRevision, scope, words, buf, size);
+            return buf;
+        }
+
+        internal bool ApplyPayload(DataStore store, byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) return false;
+            return DataLensNative.dl_lens_apply_payload(_handle, store.Handle, payload, (ulong)payload.Length) != 0;
+        }
+
         /// <summary>Advance one tick: run due Systems, then refresh due Views. Returns rows affected by Systems.</summary>
         internal ulong Tick(params DataStore[] stores)
         {

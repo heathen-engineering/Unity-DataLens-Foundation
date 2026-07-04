@@ -48,6 +48,7 @@ The following features are included:
 - **Simulation LOD** — per-row LOD level + LOD bands so a tick can run a fidelity band; coarser tiers update less often.
 - **Tick & cadence scheduler** — `AddScheduledProgram`/`AddScheduledView` run programs and refresh views at a period/phase; one `Tick` drives run-Systems → refresh-views.
 - **Utility-AI substrate** — response-curve passes, counter-based reproducible noise (`RunFloatNoisePerturb`), and a multi-column `Argmax` select — score → perturb → pick, all as column ops.
+- **Replication enablement (provider, not a networking system)** — per-store revision counter (`Revision`/`BumpRevision`/`SetRevision`), a late-join `Snapshot(store, scope)`, a `CollectDelta(store, sinceRevision, scope)` (column-level diffs, endian-free), and `ApplyPayload(store, payload)` — the pointer-free wire primitives a netcode stack (Mirror/NGO/FishNet/Unreal) *consumes*. DataLens opens no socket, dictates no topology, and enforces no authority; it exposes the hooks and gets out of the way. Rollback = snapshot-then-apply; interest management = the scope predicate.
 - **Native, no GC** — all hot state is in the native library; the managed layer is thin P/Invoke facades. Linux **and** Windows x86_64 binaries are vendored in-package.
 
 ---
@@ -149,6 +150,10 @@ uses the dynamic `lens.View(from, columnTags)` and `Get<T>`/`Set<T>` by tag inst
 | `RunSystemColumn(store, col, op, operandCol)` | Tag-addressed cross-column Store System |
 | `Commit()` | Weight-ordered write-back of all registered Views (heavier weight wins per cell) |
 | `Tick()` / `CurrentTick` / `ResetTick` | Advance / read the scheduler clock |
+| `Revision(store)` / `BumpRevision(store)` / `SetRevision(store, r)` | Per-store replication revision counter |
+| `Snapshot(store, scope = null)` | Serialise a store (or a row-scoped subset) to a portable byte payload (late-join baseline) |
+| `CollectDelta(store, sinceRevision, scope = null)` | Serialise the column-level changes since a revision (per-tick delta) |
+| `ApplyPayload(store, payload)` | Apply a received snapshot/delta payload to a store |
 
 ### `DataView<TRow>` / `DataLensView`
 
