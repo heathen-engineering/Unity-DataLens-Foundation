@@ -126,6 +126,41 @@ A cross-store Entity System adds dereference joins and a filter to `From()`
 (`new DataLensFrom("...Catalog").Dereference(into, via).Where(p => p.InRange(...))`); a data-driven consumer
 uses the dynamic `lens.View(from, columnTags)` and `Get<T>`/`Set<T>` by tag instead of a row struct.
 
+### 4. Replicate a store (hooks for your netcode, no transport of our own)
+
+DataLens ships the wire primitives; **your** netcode stack (Mirror, NGO, FishNet, Unreal, custom) owns the
+socket, authority, and topology. The revision counter, a snapshot, and per-tick deltas are all you need.
+
+```csharp
+const string Store = "Game.Movement";
+
+// ── Host: advance the revision each network tick, then collect + send the delta ──
+lens.BumpRevision(Store);                       // stamp this tick's writes with a new revision
+// ... run Systems / commit Views for the tick (they mark changed columns dirty) ...
+byte[] delta = lens.CollectDelta(Store, sinceRevision: lastAckedByClient);
+transport.Send(delta);                          // YOUR channel: RPC, NetworkVariable, raw socket...
+
+// ── Late join / first sync: send a full baseline instead of a delta ──
+byte[] baseline = lens.Snapshot(Store);         // whole store
+transport.SendTo(newPeer, baseline);
+
+// Interest management: scope either call to a row-index bitmask (e.g. an entity's rows) so a peer
+// only receives what it can see — this is exactly what HATE's CollectEntityScope hands you.
+byte[] scoped = lens.CollectDelta(Store, sinceRevision, scope: visibleRowsBitmask);
+
+// ── Client: apply whatever arrived (snapshot or delta) ──
+lens.ApplyPayload(Store, receivedBytes);        // reconciles the local store to the payload
+ulong now = lens.Revision(Store);               // ack this back to the host
+
+// Rollback (client prediction): snapshot a scope before a speculative action, restore on misprediction.
+byte[] preAction = lens.Snapshot(Store, scope: predictedRows);
+// ... if mispredicted:
+lens.ApplyPayload(Store, preAction);
+```
+
+Payloads are pointer-free and endianness-free (safe cross-platform / cross-engine), and deltas are column-level
+(only changed cells travel). DataLens never opens a socket or decides authority — see `DataLens-Spec.md` §10.
+
 -----
 
 ## API Reference
