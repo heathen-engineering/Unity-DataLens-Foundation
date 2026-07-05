@@ -393,6 +393,14 @@ namespace Heathen.DataLens
         public void Schedule<TRow>(DataView<TRow> view, ulong period, ulong phase = 0) where TRow : unmanaged
             => DataLensNative.dl_lens_add_scheduled_rwview(_handle, view.Handle, period, phase);
 
+        /// <summary>
+        /// Schedule a dynamic (column-addressed) <see cref="DataLensView"/> so this Lens's <see cref="Tick()"/>
+        /// commits then re-hydrates it on cadence — the frequency at which a game-facing view stays current. This
+        /// is how a view is maintained by the Lens rather than pulled by hand: set a period once, then just read.
+        /// </summary>
+        public void Schedule(DataLensView view, ulong period, ulong phase = 0)
+            => DataLensNative.dl_lens_add_scheduled_rwview(_handle, view.Handle, period, phase);
+
         /// <summary>Advance one tick over this Lens's owned stores (commit due views, run Systems, re-hydrate).</summary>
         public ulong Tick() => Tick(_ownedStores ?? Array.Empty<DataStore>());
 
