@@ -344,6 +344,52 @@ namespace Heathen.DataLens
             }
         }
 
+        /// <summary>
+        /// Run an ordered batch of column-transform Systems over one <paramref name="store"/> in a SINGLE native
+        /// dispatch — the fused pipeline (decision #17): N steps become one pass, with submission order preserved
+        /// for conflicting steps, so the result is identical to running the steps one by one but without the
+        /// per-step P/Invoke + managed round-trip. This is the public seam a consumer (e.g. HATE's ordered Trait
+        /// pipeline) uses instead of N separate <see cref="RunSystem"/> / <see cref="RunSystemColumn"/> calls.
+        /// Every step's target/operand/compare columns must belong to <paramref name="store"/>. Returns total rows
+        /// affected. Float/Int32 columns only.
+        /// </summary>
+        public ulong RunSystemBatch(GameplayTag store, params DataSystemStep[] steps)
+        {
+            if (steps == null || steps.Length == 0) return 0;
+            DataStore ds = ResolveStore(store, out int si);
+            var descs = new SystemDesc[steps.Length];
+            for (int i = 0; i < steps.Length; i++)
+                descs[i] = BuildStep(ds, si, steps[i]);
+            return RunBatch(descs);
+        }
+
+        // Resolve one tag-addressed pipeline step to a native SystemDesc: look up the target (and any operand /
+        // compare) column indices in the store, then pick the typed scalar/column, predicated or plain, factory.
+        private SystemDesc BuildStep(DataStore ds, int si, in DataSystemStep s)
+        {
+            int tc = ResolveSystemColumn(s.TargetCol, si, out DataLensValueType t);
+            if (t != DataLensValueType.Float && t != DataLensValueType.Int32)
+                throw new NotSupportedException($"RunSystemBatch supports Float/Int32 columns (got {t}).");
+            bool f = t == DataLensValueType.Float;
+            ulong oc = s.OperandIsColumn ? (ulong)ResolveSystemColumn(s.OperandCol, si, out _) : 0;
+            ulong pc = s.HasPredicate ? (ulong)ResolveSystemColumn(s.CompareCol, si, out _) : 0;
+            ulong target = (ulong)tc;
+
+            if (s.OperandIsColumn)
+            {
+                if (s.HasPredicate)
+                    return f ? SystemDesc.FloatColumn(ds, target, s.Op, oc, pc, s.Cmp, (float)s.Threshold)
+                             : SystemDesc.IntColumn(ds, target, s.Op, oc, pc, s.Cmp, (int)s.Threshold);
+                return f ? SystemDesc.FloatColumn(ds, target, s.Op, oc)
+                         : SystemDesc.IntColumn(ds, target, s.Op, oc);
+            }
+            if (s.HasPredicate)
+                return f ? SystemDesc.Float(ds, target, s.Op, (float)s.Operand, pc, s.Cmp, (float)s.Threshold)
+                         : SystemDesc.Int(ds, target, s.Op, (int)s.Operand, pc, s.Cmp, (int)s.Threshold);
+            return f ? SystemDesc.Float(ds, target, s.Op, (float)s.Operand)
+                     : SystemDesc.Int(ds, target, s.Op, (int)s.Operand);
+        }
+
         // Lower a filter tree to the Core's RPN scope program (post-order: children then the connective).
         // sourceOf maps a resolved store index -> view source (0 = base, k>=1 = the (k-1)th join).
         private void CompilePredicate(DataLensPredicate node, Dictionary<int, int> sourceOf,
