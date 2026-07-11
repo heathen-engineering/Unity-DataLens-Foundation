@@ -1,11 +1,7 @@
 {
-    "name": "Heathen.DataLens.Foundation.Editor",
+    "name": "Heathen.DataLens.Foundation.Editor.Bootstrap",
     "rootNamespace": "Heathen.DataLens.Editor",
-    "references": [
-        "Heathen.DataLens.Foundation",
-        "Heathen.GameFramework",
-        "Heathen.GameFramework.Editor"
-    ],
+    "references": [],
     "includePlatforms": [
         "Editor"
     ],
@@ -14,9 +10,7 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [
-        "HEATHEN_GAMEFRAMEWORK"
-    ],
+    "defineConstraints": [],
     "versionDefines": [
         {
             "name": "com.heathen.gameframework",
