@@ -9,6 +9,11 @@ A cache-aware, column-oriented in-memory simulation store for Unity. Entities ar
 
 -----
 
+## 🛠 Also Available For
+[![Unreal](https://img.shields.io/badge/Unreal-5.8%20%2B-black?style=for-the-badge&logo=unrealengine&logoColor=white)](https://github.com/heathen-engineering/Unreal-DataLens-Foundation)
+
+-----
+
 ## ⚙ Built on the DataLens Core
 
 This package is the Unity binding over the engine-agnostic native [**DataLens Core**](https://github.com/heathen-engineering/DataLens) (C++17, Linux/Windows). The Core is where portability lives; each engine ships its own thin Foundation over it. Same substrate powers [HATE](https://github.com/heathen-engineering/Unity-Heathen-Attribute-gpTag-Engine-Foundation) on top.
