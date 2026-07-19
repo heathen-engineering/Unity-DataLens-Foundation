@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
 ![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green?style=flat-square)
-![Unity](https://img.shields.io/badge/Unity-2021.3%20%2B-black?style=flat-square&logo=unity&logoColor=white)
+![Unity](https://img.shields.io/badge/Unity-2021.3%20%2B-%23313131?style=flat-square&logo=unity&logoColor=white)
 [![Native](https://img.shields.io/badge/Native-C%2B%2B17%20core-lightgrey?style=flat-square)](https://github.com/heathen-engineering/DataLens)
 
 A cache-aware, column-oriented in-memory simulation store for Unity. Entities are rows, attributes are bit-packed columns, and updates run as branchless parallel passes over native memory — millions of agents simulated per frame with zero per-entity GC objects.
