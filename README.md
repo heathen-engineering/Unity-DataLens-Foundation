@@ -10,7 +10,7 @@ A cache-aware, column-oriented in-memory simulation store for Unity. Entities ar
 -----
 
 ## 🛠 Also Available For
-[![Unreal](https://img.shields.io/badge/Unreal-5.8%20%2B-black?style=for-the-badge&logo=unrealengine&logoColor=white)](https://github.com/heathen-engineering/Unreal-DataLens-Foundation)
+[![Unreal](https://img.shields.io/badge/Unreal-5.8%20%2B-%23313131?style=for-the-badge&logo=unrealengine&logoColor=white)](https://github.com/heathen-engineering/Unreal-DataLens-Foundation)
 
 -----
 
