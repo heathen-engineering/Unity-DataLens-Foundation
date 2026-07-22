@@ -1,3 +1,5 @@
+> **Migrating to Codeberg:** this repo is moving to [codeberg.org/Heathen-Engineering/Unity-DataLens-Foundation](https://codeberg.org/Heathen-Engineering/Unity-DataLens-Foundation). GitHub will remain a read-only mirror during the transition.
+
 # DataLens Foundation
 
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
