@@ -245,8 +245,8 @@ Payloads are pointer-free and endianness-free (safe cross-platform / cross-engin
 The binaries are pre-vendored, so most users never rebuild. To rebuild from the [DataLens Core](https://github.com/heathen-engineering/DataLens) and re-vendor into this package:
 
 ```sh
-./build-native.sh                 # defaults to ~/Dev/GitHub/DataLens/Core
-./build-native.sh /path/to/DataLens/Core
+./Archive/build-native.sh                 # defaults to ~/Dev/GitHub/DataLens/Core
+./Archive/build-native.sh /path/to/DataLens/Core
 ```
 
 Linux is built natively; Windows is a MinGW-w64 cross-build (see the Core `README.md`). macOS (`.dylib`) is pending.
