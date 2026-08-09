@@ -10,7 +10,7 @@
 # DataLens Foundation
 
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
-![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green?style=flat-square)
+[![Maintained](https://img.shields.io/badge/Maintained-On%20Codeberg-brightgreen?style=flat-square)](https://codeberg.org/Heathen-Engineering/Unity-DataLens-Foundation)
 ![Unity](https://img.shields.io/badge/Unity-2021.3%20%2B-%23313131?style=flat-square&logo=unity&logoColor=white)
 [![Native](https://img.shields.io/badge/Native-C%2B%2B17%20core-lightgrey?style=flat-square)](https://github.com/heathen-engineering/DataLens)
 
